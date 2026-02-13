@@ -7,11 +7,11 @@ const pool = require('../config/db');
 const getRoles = async (req, res) => {
     try {
         const companyId = req.companyId || req.query.company_id || req.body.company_id;
-        
+
         if (!companyId) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'company_id is required' 
+            return res.status(400).json({
+                success: false,
+                error: 'company_id is required'
             });
         }
 
@@ -180,20 +180,20 @@ const updateRolePermissions = async (req, res) => {
         // Filter and validate permissions - remove duplicates and empty modules
         const validPermissions = [];
         const seenModules = new Set();
-        
+
         for (const p of permissions) {
             // Skip if module is missing, empty, or not a string
             if (!p.module || typeof p.module !== 'string' || !p.module.trim()) {
                 continue;
             }
-            
+
             const module = p.module.trim();
-            
+
             // Skip if we've already seen this module (avoid duplicates)
             if (seenModules.has(module)) {
                 continue;
             }
-            
+
             seenModules.add(module);
             validPermissions.push({
                 module: module,
@@ -226,7 +226,7 @@ const updateRolePermissions = async (req, res) => {
 
         // Get connection for transaction
         const connection = await pool.getConnection();
-        
+
         try {
             // Start transaction
             await connection.beginTransaction();
@@ -242,11 +242,11 @@ const updateRolePermissions = async (req, res) => {
                          can_edit = VALUES(can_edit),
                          can_delete = VALUES(can_delete)`,
                     [
-                        id, 
-                        p.module, 
-                        p.can_view, 
-                        p.can_add, 
-                        p.can_edit, 
+                        id,
+                        p.module,
+                        p.can_view,
+                        p.can_add,
+                        p.can_edit,
                         p.can_delete
                     ]
                 );
@@ -283,9 +283,9 @@ const addRole = async (req, res) => {
                 bodyCompanyId: req.body.company_id,
                 queryCompanyId: req.query.company_id
             });
-            return res.status(400).json({ 
-                success: false, 
-                error: 'company_id is required. Please ensure you are logged in and have a company assigned.' 
+            return res.status(400).json({
+                success: false,
+                error: 'company_id is required. Please ensure you are logged in and have a company assigned.'
             });
         }
 
@@ -312,11 +312,19 @@ const addRole = async (req, res) => {
 
         // Initialize default permissions for the new role
         try {
+            console.log(`Initializing default permissions for role: ${role_name}, roleId: ${roleId}, companyId: ${companyId}`);
             const { initializeDefaultPermissions } = require('../helpers/roleInitializer');
             await initializeDefaultPermissions(companyId, roleId, role_name.trim());
             console.log(`✅ Default permissions initialized for role: ${role_name}`);
         } catch (permError) {
-            console.error('⚠️ Error initializing default permissions (non-fatal):', permError);
+            console.error('⚠️ Error initializing default permissions:', permError);
+            console.error('Permission error details:', {
+                message: permError.message,
+                stack: permError.stack,
+                roleId,
+                roleName: role_name,
+                companyId
+            });
             // Don't fail role creation if permissions initialization fails
         }
 
@@ -325,10 +333,10 @@ const addRole = async (req, res) => {
             [roleId]
         );
 
-        res.status(201).json({ 
-            success: true, 
+        res.status(201).json({
+            success: true,
             data: newRole[0],
-            message: 'Role created successfully with default permissions' 
+            message: 'Role created successfully with default permissions'
         });
     } catch (error) {
         console.error('Add role error:', error);
@@ -339,10 +347,10 @@ const addRole = async (req, res) => {
             sqlMessage: error.sqlMessage,
             stack: error.stack
         });
-        
+
         // Provide more detailed error message
         let errorMessage = 'Failed to create role';
-        
+
         if (error.code === 'ER_DUP_ENTRY') {
             errorMessage = 'Role with this name already exists for this company';
         } else if (error.code === 'ER_NO_REFERENCED_ROW_2' || error.code === 'ER_NO_REFERENCED_ROW') {
@@ -352,9 +360,9 @@ const addRole = async (req, res) => {
         } else if (error.message) {
             errorMessage = error.message;
         }
-        
-        res.status(500).json({ 
-            success: false, 
+
+        res.status(500).json({
+            success: false,
             error: errorMessage,
             details: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
@@ -430,10 +438,10 @@ const updateRole = async (req, res) => {
             [id]
         );
 
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             data: updatedRole[0],
-            message: 'Role updated successfully' 
+            message: 'Role updated successfully'
         });
     } catch (error) {
         console.error('Update role error:', error);
@@ -476,9 +484,9 @@ const deleteRole = async (req, res) => {
         );
 
         if (userRoles[0]?.count > 0) {
-            return res.status(400).json({ 
-                success: false, 
-                error: `Cannot delete role. It is assigned to ${userRoles[0].count} user(s). Please reassign users first.` 
+            return res.status(400).json({
+                success: false,
+                error: `Cannot delete role. It is assigned to ${userRoles[0].count} user(s). Please reassign users first.`
             });
         }
 
@@ -652,16 +660,16 @@ const getUserPermissions = async (req, res) => {
         const companyId = req.companyId || req.query.company_id || req.body.company_id || req.user?.company_id;
 
         if (!userId) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'user_id is required' 
+            return res.status(400).json({
+                success: false,
+                error: 'user_id is required'
             });
         }
 
         if (!companyId) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'company_id is required' 
+            return res.status(400).json({
+                success: false,
+                error: 'company_id is required'
             });
         }
 
@@ -725,19 +733,19 @@ const getUserPermissions = async (req, res) => {
         });
     } catch (error) {
         console.error('Get user permissions error:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: error.message 
+        res.status(500).json({
+            success: false,
+            error: error.message
         });
     }
 };
 
-module.exports = { 
-    getRoles, 
+module.exports = {
+    getRoles,
     getRoleById,
     getModules,
-    getRolePermissions, 
-    updateRolePermissions, 
+    getRolePermissions,
+    updateRolePermissions,
     addRole,
     updateRole,
     deleteRole,

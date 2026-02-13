@@ -83,13 +83,47 @@ const initializeDefaultPermissions = async (companyId, roleId, roleName) => {
       `SELECT module_key FROM modules WHERE is_active = 1`
     );
 
-    const moduleKeys = modules.map(m => m.module_key);
+    // Check if modules were found
+    if (!modules || modules.length === 0) {
+      console.warn('⚠️ No active modules found in database. Skipping permission initialization.');
+      console.warn('Please ensure the modules table is populated by running: migrations/create_complete_roles_permissions_system.sql');
+      return;
+    }
+
+    // Filter out any undefined or null module_key values
+    const moduleKeys = modules
+      .map(m => m.module_key)
+      .filter(key => key !== undefined && key !== null && key.trim() !== '');
+
+    if (moduleKeys.length === 0) {
+      console.warn('⚠️ No valid module keys found. Skipping permission initialization.');
+      return;
+    }
+
+    console.log(`Found ${moduleKeys.length} active modules for role: ${roleName}`);
 
     // Default permissions based on role
     const defaultPermissions = getDefaultPermissionsForRole(roleName, moduleKeys);
 
+    if (!defaultPermissions || defaultPermissions.length === 0) {
+      console.warn(`⚠️ No default permissions generated for role: ${roleName}`);
+      return;
+    }
+
     // Insert permissions
     for (const perm of defaultPermissions) {
+      // Validate that all required fields are defined
+      if (!perm.module || perm.module === undefined) {
+        console.warn('Skipping permission with undefined module:', perm);
+        continue;
+      }
+
+      // Ensure all permission values are properly defined (default to 0 if undefined)
+      const canView = perm.can_view === true ? 1 : 0;
+      const canAdd = perm.can_add === true ? 1 : 0;
+      const canEdit = perm.can_edit === true ? 1 : 0;
+      const canDelete = perm.can_delete === true ? 1 : 0;
+
       await pool.execute(
         `INSERT INTO role_permissions (role_id, module, can_view, can_add, can_edit, can_delete)
          VALUES (?, ?, ?, ?, ?, ?)
@@ -101,10 +135,10 @@ const initializeDefaultPermissions = async (companyId, roleId, roleName) => {
         [
           roleId,
           perm.module,
-          perm.can_view ? 1 : 0,
-          perm.can_add ? 1 : 0,
-          perm.can_edit ? 1 : 0,
-          perm.can_delete ? 1 : 0
+          canView,
+          canAdd,
+          canEdit,
+          canDelete
         ]
       );
     }

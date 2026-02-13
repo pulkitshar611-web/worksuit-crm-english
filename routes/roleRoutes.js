@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../middleware/auth');
-const { 
-    getRoles, 
+const {
+    getRoles,
     getRoleById,
     getModules,
-    getRolePermissions, 
-    updateRolePermissions, 
+    getRolePermissions,
+    updateRolePermissions,
     addRole,
     updateRole,
     deleteRole,
@@ -16,8 +16,11 @@ const {
     getUserPermissions
 } = require('../controllers/roleController');
 
-// Get all modules (dynamic)
+// Get all modules (dynamic) - Must be before /:id
 router.get('/modules', verifyToken, getModules);
+
+// Get user's permissions (all roles combined) - Must be before /:id
+router.get('/user-permissions', verifyToken, getUserPermissions);
 
 // Get all roles
 router.get('/', verifyToken, getRoles);
@@ -48,8 +51,5 @@ router.post('/:id/assign', verifyToken, assignRoleToUser);
 
 // Remove role from user
 router.delete('/:id/assign/:user_id', verifyToken, removeRoleFromUser);
-
-// Get user's permissions (all roles combined)
-router.get('/user-permissions', verifyToken, getUserPermissions);
 
 module.exports = router;

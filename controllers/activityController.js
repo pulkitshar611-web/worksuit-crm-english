@@ -9,11 +9,6 @@ const pool = require('../config/db');
  * Get activities for a module/item
  * GET /api/v1/activities
  */
-
-
-
-
-
 const getAll = async (req, res) => {
     try {
         const { 
